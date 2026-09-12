@@ -1,0 +1,148 @@
+{
+  "lineas": [
+    {
+      "linea": "A",
+      "ramal": null,
+      "cabeceras": [
+        {
+          "nombre": "San Pedrito",
+          "habil": {"primero": "05:30", "ultimo": "23:00"},
+          "sabado": {"primero": "06:00", "ultimo": "23:30"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:08"}
+        },
+        {
+          "nombre": "Pza. de Mayo–Casa Rosada",
+          "habil": {"primero": "05:30", "ultimo": "23:28"},
+          "sabado": {"primero": "06:00", "ultimo": "23:57"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:36"}
+        }
+      ]
+    },
+    {
+      "linea": "B",
+      "ramal": null,
+      "cabeceras": [
+        {
+          "nombre": "J. M. Rosas–V. Urquiza",
+          "habil": {"primero": "05:30", "ultimo": "23:00"},
+          "sabado": {"primero": "06:00", "ultimo": "01:00"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:00"}
+        },
+        {
+          "nombre": "Leandro N. Alem",
+          "habil": {"primero": "05:30", "ultimo": "23:30"},
+          "sabado": {"primero": "06:00", "ultimo": "01:30"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:28"}
+        }
+      ]
+    },
+    {
+      "linea": "C",
+      "ramal": null,
+      "cabeceras": [
+        {
+          "nombre": "Constitución",
+          "habil": {"primero": "05:30", "ultimo": "23:19"},
+          "sabado": {"primero": "06:00", "ultimo": "23:40"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:21"}
+        },
+        {
+          "nombre": "Retiro",
+          "habil": {"primero": "05:30", "ultimo": "23:33"},
+          "sabado": {"primero": "06:00", "ultimo": "23:54"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:34"}
+        }
+      ]
+    },
+    {
+      "linea": "D",
+      "ramal": null,
+      "cabeceras": [
+        {
+          "nombre": "Congreso de Tucumán",
+          "habil": {"primero": "05:30", "ultimo": "23:02"},
+          "sabado": {"primero": "06:00", "ultimo": "23:26"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:01"}
+        },
+        {
+          "nombre": "Catedral",
+          "habil": {"primero": "05:30", "ultimo": "23:33"},
+          "sabado": {"primero": "06:00", "ultimo": "23:59"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:34"}
+        }
+      ]
+    },
+    {
+      "linea": "E",
+      "ramal": null,
+      "cabeceras": [
+        {
+          "nombre": "Pza. de los Virreyes–Perón",
+          "habil": {"primero": "05:30", "ultimo": "22:56"},
+          "sabado": {"primero": "06:00", "ultimo": "23:26"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "21:56"}
+        },
+        {
+          "nombre": "Retiro",
+          "habil": {"primero": "05:30", "ultimo": "23:30"},
+          "sabado": {"primero": "06:00", "ultimo": "23:58"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:28"}
+        }
+      ]
+    },
+    {
+      "linea": "H",
+      "ramal": null,
+      "cabeceras": [
+        {
+          "nombre": "Hospitales",
+          "habil": {"primero": "05:30", "ultimo": "23:51"},
+          "sabado": {"primero": "06:00", "ultimo": "00:20"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:51"}
+        },
+        {
+          "nombre": "Fac. de Derecho–J. Lanteri",
+          "habil": {"primero": "05:30", "ultimo": "23:30"},
+          "sabado": {"primero": "06:00", "ultimo": "23:59"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "22:29"}
+        }
+      ]
+    },
+    {
+      "linea": "Premetro",
+      "ramal": "Centro Cívico",
+      "cabeceras": [
+        {
+          "nombre": "Intendente Saguier",
+          "habil": {"primero": "05:30", "ultimo": "21:00"},
+          "sabado": {"primero": "06:00", "ultimo": "21:07"},
+          "domingo_feriado": {"primero": "08:00", "ultimo": "21:00"}
+        },
+        {
+          "nombre": "Centro Cívico",
+          "habil": {"primero": "06:03", "ultimo": "21:33"},
+          "sabado": {"primero": "06:31", "ultimo": "21:38"},
+          "domingo_feriado": {"primero": "08:32", "ultimo": "21:32"}
+        }
+      ]
+    },
+    {
+      "linea": "Premetro",
+      "ramal": "General Savio",
+      "cabeceras": [
+        {
+          "nombre": "Intendente Saguier",
+          "habil": {"primero": "05:39", "ultimo": "20:48"},
+          "sabado": {"primero": "06:11", "ultimo": "20:55"},
+          "domingo_feriado": {"primero": "08:13", "ultimo": "20:47"}
+        },
+        {
+          "nombre": "General Savio",
+          "habil": {"primero": "06:13", "ultimo": "21:21"},
+          "sabado": {"primero": "06:43", "ultimo": "21:27"},
+          "domingo_feriado": {"primero": "08:45", "ultimo": "21:19"}
+        }
+      ]
+    }
+  ]
+}
