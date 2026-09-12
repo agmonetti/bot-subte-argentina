@@ -1,5 +1,7 @@
+import math
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -11,6 +13,7 @@ if str(BASE_DIR) not in sys.path:
 from src.config import Config
 from src.services.storage import cargar_snapshot
 from src.services.telegram_notifier import enviar_mensaje_telegram
+from src.services.horarios import obtener_respuesta_horarios
 
 
 def _estados_originales(snapshot):
@@ -60,6 +63,19 @@ def _chat_autorizado(chat_id):
     return chat_id is not None and str(chat_id) == str(Config.TELEGRAM_CHAT_ID)
 
 
+def _fecha_del_mensaje(mensaje):
+    valor = mensaje.get("date") if isinstance(mensaje, dict) else None
+    try:
+        if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+            raise ValueError("timestamp ausente o inválido")
+        if not math.isfinite(valor):
+            raise ValueError("timestamp no finito")
+        return datetime.fromtimestamp(valor, Config.TIMEZONE_LOCAL).date()
+    except (ValueError, OverflowError, OSError, TypeError):
+        return datetime.now(Config.TIMEZONE_LOCAL).date()
+
+
+
 def escuchar_comandos():
     """Escucha comandos sin consultar EMOVA desde el listener de Telegram."""
     offset = None
@@ -71,12 +87,17 @@ def escuchar_comandos():
                 mensaje = update.get("message", {})
                 texto = mensaje.get("text", "").strip()
                 chat_id = mensaje.get("chat", {}).get("id")
-
                 if not _chat_autorizado(chat_id):
                     continue
                 comando = texto.split(maxsplit=1)[0] if texto else ""
                 if comando == Config.COMANDO_ESTADO:
                     enviar_mensaje_telegram(obtener_respuesta_estado(), chat_id=chat_id)
+                elif comando == "/horarios":
+                    fecha = _fecha_del_mensaje(mensaje)
+                    enviar_mensaje_telegram(
+                        obtener_respuesta_horarios(fecha),
+                        chat_id=chat_id,
+                    )
         except requests.exceptions.RequestException as error:
             print(f"Error de red al consultar comandos de Telegram: {error}")
         except Exception as error:
