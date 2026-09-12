@@ -100,6 +100,7 @@ def test_seleccion_laborable_y_formato():
     respuesta = horarios.obtener_respuesta_horarios(date(2026, 9, 14))
 
     assert "Horarios del subte — 14/09/2026 (lunes a viernes)" in respuesta
+    assert "<b>Línea A</b>" in respuesta
     assert "Pza. de Mayo–Casa Rosada: primero 05:30 · último 23:28" in respuesta
     assert "Línea B — horario extendido" not in respuesta
 

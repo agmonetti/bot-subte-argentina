@@ -123,7 +123,11 @@ def _formatear_respuesta(catalogo, fecha, columna):
         "",
     ]
     for grupo in catalogo["lineas"]:
-        titulo = grupo["linea"]
+        titulo = (
+            "Premetro"
+            if grupo["linea"] == "Premetro"
+            else f"Línea {grupo['linea']}"
+        )
         if grupo["ramal"]:
             titulo += f" — {grupo['ramal']}"
         partes.append(f"<b>{html.escape(titulo)}</b>")
