@@ -55,11 +55,14 @@ def snapshot_completo(estados):
 
 def excluir_estados_finalizados(actual, anterior):
     """No reemplaza un estado operativo por el cierre diario del servicio."""
-    resultado = dict(actual)
+    resultado = {}
     estado_finalizado = normalizar_texto(Config.ESTADO_REDUNDANTE)
     for linea, datos in actual.items():
-        if datos.get("canonico") == estado_finalizado and linea in anterior:
-            resultado[linea] = anterior[linea]
+        if datos.get("canonico") == estado_finalizado:
+            if linea in anterior:
+                resultado[linea] = anterior[linea]
+            continue
+        resultado[linea] = datos
     return resultado
 
 

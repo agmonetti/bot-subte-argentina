@@ -46,6 +46,12 @@ def test_cambio_a_normal_y_cambio_de_incidente_se_detectan():
     }
 
 
+def test_estado_finalizado_sin_snapshot_previo_se_descarta():
+    actual = normalizar_estados({"A": Config.ESTADO_REDUNDANTE})
+
+    assert excluir_estados_finalizados(actual, {}) == {}
+
+
 def test_estado_finalizado_no_reemplaza_estado_operativo():
     anterior = normalizar_estados({"A": "Demora"})
     actual = normalizar_estados({"A": Config.ESTADO_REDUNDANTE})
