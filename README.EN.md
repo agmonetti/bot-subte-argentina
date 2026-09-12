@@ -1,69 +1,72 @@
 # Buenos Aires Subway Alert Bot
 
-This project is an automated bot that monitors the status of Buenos Aires subway lines and sends intelligent alerts to Telegram when it detects service changes.
+Automated Telegram bot that monitors Buenos Aires subway line status and sends an alert only when a line changes state.
 
-## How does it work?
+## How it works
 
-- Uses Selenium to navigate and extract the status of each line from the official EMOVA website.
-- **Intelligent classification system**: Automatically distinguishes between urgent incidents and scheduled works.
-- **Granular processing**: Analyzes each sentence independently to detect multiple components per line.
-- **State persistence**: Maintains a history of problems to avoid repetitive notifications.
-- **Differentiated alerts**: Sends different types of messages according to the nature of the problem.
-- Checking is performed periodically (by default, every 1.5 hours).
+- Connects to the public SignalR/SSE hub used by EMOVA's status page.
+- Keeps one connection active during the service window.
+- Reconnects with backoff up to 60 seconds.
+- Reconciles the connection every 10 minutes (`600` seconds).
+- Compares normalized snapshots by line and notifies only real changes.
+- Stores the first clean-install snapshot without sending alerts.
+- Reports a return to `Normal` as a change.
+- Discards incomplete or invalid payloads.
+- `/estado` reads the persisted snapshot and answers only the authorized chat.
 
-## Project Architecture
+The EMOVA source is not a documented public API. SignalR details are isolated in the source adapter so site changes do not leak into business logic.
 
-The code is modularly structured to separate extraction, analysis, storage, and notification responsibilities:
+## Service window
 
-```text
-├── src/
-│   ├── config.py                  # Environment variables and global constants
-│   ├── main.py                    # Orchestrator and main loop
-│   ├── data/
-│   │   └── estados_persistentes.json # Dynamic alert history
-│   └── services/
-│       ├── __init__.py            # Services public interface
-│       ├── scrapper.py            # Web scraping with Selenium
-│       ├── analyzer.py            # Business logic and text parsing
-│       ├── storage.py             # JSON file Input/Output
-│       └── telegram_notifier.py   # Telegram API integration
-├── .env                           # Local credentials (not versioned)
-├── docker-compose.yml             # Infrastructure deployment
-├── Dockerfile                     # Image recipe with Chromium
-└── requirements.txt               # Python dependencies manifest
+The process covers the conservative `05:30`–`02:30` window of the following day. This covers the broadest weekday, Saturday, Sunday, and holiday schedules shown by EMOVA, with a margin after the latest listed departure.
+
+Outside that window the EMOVA connection is closed. The Telegram listener remains active.
+
+## Persistence
+
+The persisted file contains only the latest snapshot:
+
+```json
+{
+  "ultima_actualizacion": "2026-09-11T12:00:00-03:00",
+  "estados": {
+    "A": {"original": "Normal", "canonico": "normal"}
+  }
+}
 ```
 
-## Main Features
-
-### Detection 
-- **Scheduled works**: Automatically detects comprehensive renovation works and scheduled maintenance.
-- **Incidents**: Identifies operational problems that require immediate attention.
-- **Service recovery**: Notifies when lines return to normal operation.
-- **Multiple components**: Can detect works, problems and additional information on the same line.
-
-### History system
-- Saves the status of each line in `src/data/estados_persistentes.json`.
-- Counts consecutive detections to classify persistent problems.
-- Prevents notification spam for the same problem.
-
-### Differentiated alerts
-- **Urgent alerts**: For new incidents or operational problems.
-- **Work notifications**: For scheduled works (one time only).
-- **Reminders**: For long-duration works (every 15 days).
-- **Additional information**: For special schedules and complementary details.
+Writes are atomic. The previous format with `estados_actuales` and `historial` is migrated automatically; work and incident history is no longer used.
 
 ## Environment variables
 
-* `TELEGRAM_TOKEN`: Your Telegram bot token. (Required)
-* `TELEGRAM_CHAT_ID`: Chat ID where alerts are sent. (Required)
-* `INTERVALO_EJECUCION`: Interval between checks in seconds. (Default: 5400)
-* `HORARIO_ANALISIS_INICIO`: Monitoring start hour, local time. (Default: 6)
-* `HORARIO_ANALISIS_FIN`: Monitoring end hour, local time. (Default: 23)
-* `UMBRAL_OBRA_PROGRAMADA`: Consecutive detections to classify as work. (Default: 5)
-* `DIAS_RENOTIFICAR_OBRA`: Days between work reminders. (Default: 15)
-* `DIAS_LIMPIAR_HISTORIAL`: Inactive days to remove a record from history. (Default: 5)
+- `TELEGRAM_TOKEN`: bot token. Required.
+- `TELEGRAM_CHAT_ID`: authorized chat for alerts and commands. Required.
+- `RECONCILIATION_INTERVAL_SECONDS`: SignalR reconciliation interval. Default `600`.
+- `RECONNECT_MAX_SECONDS`: maximum reconnect backoff. Default `60`.
+- `MARGEN_FIN_SERVICIO_MINUTOS`: margin after the latest departure. Default `60`.
+- `COMANDO_ESTADO`: query command. Default `/estado`.
+- `POLLING_TIMEOUT`: Telegram long-polling timeout. Default `25`.
+- `POLLING_INTERVALO`: delay between Telegram cycles. Default `1`.
 
-**Note on timezones:** The bot uses Buenos Aires timezone (America/Argentina/Buenos_Aires, UTC-3) for monitoring, regardless of the server's timezone where it runs. This ensures that the configured hours are respected correctly even when deployed on servers with different timezones (like Zeabur which uses UTC).
+The application uses the `America/Argentina/Buenos_Aires` timezone.
+
+## Development and execution
+
+```bash
+python -m pip install -r requirements.txt
+python src/main.py
+```
+
+The Docker image does not require Chromium or ChromeDriver:
+
+```bash
+docker build -t bot-subte .
+docker run --env-file .env -v "$PWD/src/data:/app/src/data" bot-subte
+```
+
+## Future sprint
+
+`/horarios` will be implemented separately. It will return the first and last departure for each line and terminal according to the message date, including Sundays and holidays.
 
 ## Credits
 
@@ -72,7 +75,4 @@ The code is modularly structured to separate extraction, analysis, storage, and 
 - GitHub: [@agmonetti](https://github.com/agmonetti)
 - Email: agus.monetti01@gmail.com
 
----
-
-## License
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+Licensed under the GNU Affero General Public License v3.0.
