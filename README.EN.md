@@ -4,17 +4,20 @@ Automated Telegram bot that monitors Buenos Aires subway line status and sends a
 
 ## How it works
 
-- Connects to the public SignalR/SSE hub used by EMOVA's status page.
+- The status source is EMOVA's public SignalR/SSE channel, the same channel that feeds `https://aplicacioneswp.metrovias.com.ar/estadolineasEMOVA/desktopEmova.html`.
+- The adapter listens for the `estadoLineas` event, extracts all seven lines, and compares normalized snapshots.
 - Keeps one connection active during the service window.
 - Reconnects with backoff up to 60 seconds.
 - Reconciles the connection every 10 minutes (`600` seconds).
-- Compares normalized snapshots by line and notifies only real changes.
+- Telegram is only the output and command channel (`/estado`, `/horarios`); the bot does not read Telegram messages as a status source.
+- The public EMOVA page does not show alerts or messages sent by the bot: they are independent surfaces.
+- Sends an alert only when a line's canonical status changes; an identical snapshot received ten minutes later does not produce another post.
 - Stores the first clean-install snapshot without sending alerts.
 - Reports a return to `Normal` as a change.
 - Discards incomplete or invalid payloads.
 - `/estado` reads the persisted snapshot and answers only the authorized chat.
 
-The EMOVA source is not a documented public API. SignalR details are isolated in the source adapter so site changes do not leak into business logic.
+The EMOVA source is not a documented public API. The SignalR adapter is isolated so site changes do not leak into business logic.
 
 ## Service window
 

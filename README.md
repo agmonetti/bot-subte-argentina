@@ -4,11 +4,14 @@ Bot automatizado que monitorea el estado de las líneas del subte de Buenos Aire
 
 ## Funcionamiento
 
-- Se conecta al hub público SignalR/SSE utilizado por la página de estado de EMOVA.
+- La fuente de estados es el canal público SignalR/SSE de EMOVA, el mismo que alimenta la página `https://aplicacioneswp.metrovias.com.ar/estadolineasEMOVA/desktopEmova.html`.
+- El adaptador escucha el evento `estadoLineas`, extrae las siete líneas y compara cada snapshot normalizado.
 - Mantiene una conexión persistente durante la ventana operativa del servicio.
 - Reintenta conexiones con backoff de hasta 60 segundos.
 - Resincroniza cada 10 minutos (`600` segundos).
-- Compara snapshots por línea y notifica sólo cambios reales.
+- Telegram es únicamente el canal de salida y de comandos (`/estado`, `/horarios`); el bot no lee mensajes de Telegram como fuente de estados.
+- La página pública de EMOVA no muestra las alertas ni los mensajes enviados por el bot: son dos superficies independientes.
+- Envía alertas sólo cuando cambia el estado canónico de una línea; un snapshot idéntico recibido diez minutos después no genera otra publicación.
 - El primer snapshot después de una instalación limpia se persiste sin notificar.
 - El regreso de una línea a `Normal` sí genera una actualización.
 - Un payload incompleto o inválido se descarta para evitar falsas alertas.

@@ -66,17 +66,18 @@ def procesar_estado(estados_actuales, fecha_actualizacion):
         print("Snapshot operativo incompleto de EMOVA; se descarta sin notificar.")
         return
 
+    cambios = comparar_snapshots(estados_operativos, anterior)
+    if anterior and not cambios:
+        print("Estado sin cambios; no se persiste ni se envía alerta.")
+        return
+
     guardar_snapshot(estados_operativos, fecha_actualizacion.isoformat())
     if not anterior:
         print("Snapshot inicial guardado; no se envían alertas.")
         return
 
-    cambios = comparar_snapshots(estados_operativos, anterior)
-    if cambios:
-        enviar_alerta_cambios(cambios, fecha_actualizacion)
-        print(f"Actualización enviada para: {', '.join(cambios)}")
-    else:
-        print("Estado sin cambios; no se envía alerta.")
+    enviar_alerta_cambios(cambios, fecha_actualizacion)
+    print(f"Actualización enviada para: {', '.join(cambios)}")
 
 
 def main():
