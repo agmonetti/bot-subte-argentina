@@ -93,5 +93,6 @@ Se implementará `/horarios` por separado. Devolverá la primera y última salid
 
 - Desarrollado por Agustin Monetti.
 - Basado en información pública de EMOVA.
-- GitHub: [@agmonetti](https://github.com/agmonetti)
+- GitHub: [@agmonetti](https://github.com/agmonetti).
+  
 Este proyecto está licenciado bajo GNU Affero General Public License v3.0.
