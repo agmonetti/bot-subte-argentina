@@ -28,6 +28,17 @@ def _estados_originales(snapshot):
     return resultado
 
 
+def _formatear_ultima_actualizacion(valor):
+    try:
+        fecha = datetime.fromisoformat(valor) if isinstance(valor, str) else valor
+        if not isinstance(fecha, datetime):
+            return str(valor)
+        if fecha.tzinfo is None:
+            fecha = fecha.replace(tzinfo=Config.TIMEZONE_LOCAL)
+        return fecha.astimezone(Config.TIMEZONE_LOCAL).strftime("%d/%m/%Y %H:%M")
+    except (TypeError, ValueError, OverflowError):
+        return str(valor)
+
 def formatear_estado_actual(snapshot):
     """Formatea el último snapshot sin iniciar una consulta externa."""
     estados = _estados_originales(snapshot)
@@ -38,7 +49,7 @@ def formatear_estado_actual(snapshot):
 
     actualizado = snapshot.get("ultima_actualizacion") if isinstance(snapshot, dict) else None
     if actualizado:
-        mensaje += f"\nÚltima actualización: {actualizado}"
+        mensaje += f"\nÚltima actualización: {_formatear_ultima_actualizacion(actualizado)}"
     return mensaje
 
 

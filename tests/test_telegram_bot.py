@@ -13,14 +13,14 @@ def test_estado_usa_snapshot_persistido(tmp_config):
             "A": {"original": "Normal", "canonico": "normal"},
             "B": {"original": "Cerrada por obras", "canonico": "cerrada por obras"},
         },
-        "2026-08-13T10:00:00-03:00",
+        "2026-08-13T13:00:00+00:00",
     )
 
     texto = obtener_respuesta_estado()
 
     assert "<b>A:</b> Normal" in texto
     assert "<b>B:</b> Cerrada por obras" in texto
-    assert "Última actualización: 2026-08-13T10:00:00-03:00" in texto
+    assert "Última actualización: 13/08/2026 10:00" in texto
 
 
 def test_listener_ignora_chat_no_autorizado(monkeypatch):
