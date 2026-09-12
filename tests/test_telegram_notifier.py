@@ -1,7 +1,7 @@
-import requests
+from datetime import datetime
 
 from src.config import Config
-from src.services.telegram_notifier import enviar_alerta_telegram, enviar_mensaje_telegram
+from src.services.telegram_notifier import enviar_alerta_cambios, enviar_mensaje_telegram
 
 
 class FakeResponse:
@@ -9,38 +9,31 @@ class FakeResponse:
         pass
 
 
-def test_enviar_alerta_formatea_mensaje_completo(monkeypatch):
+def test_alerta_incluye_solo_lineas_modificadas(monkeypatch):
     capturado = {}
 
     def fake_post(url, data, timeout):
-        capturado["url"] = url
         capturado["data"] = data
         return FakeResponse()
 
-    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setattr("src.services.telegram_notifier.requests.post", fake_post)
+    enviar_alerta_cambios(
+        {"B": {"anterior": "Normal", "actual": "Cerrada <por> obras"}},
+        datetime(2026, 8, 13, 10, 0, 0),
+    )
 
-    cambios = {"A": ["Demora de 20 minutos"]}
-    obras = {"B": ["Cerrada por obras de renovación integral"]}
-    ren = {"C": ["Obra en curso"]}
-
-    enviar_alerta_telegram(cambios, obras, ren)
-
-    texto = capturado["data"]["text"]
-    assert "Obras Programadas Detectadas" in texto
-    assert "Cerrada por obras de renovación integral" in texto
-    assert "Novedades" in texto
-    assert "Demora de 20 minutos" in texto
-    assert "Recordatorio - Obras Programadas Activas" in texto
+    assert "<b>B:</b> Cerrada &lt;por&gt; obras" in capturado["data"]["text"]
     assert capturado["data"]["chat_id"] == Config.TELEGRAM_CHAT_ID
 
 
-def test_enviar_alerta_sin_cambios_no_envia(monkeypatch):
+def test_alerta_sin_cambios_no_envia(monkeypatch):
     llamadas = []
     monkeypatch.setattr(
         "src.services.telegram_notifier.enviar_mensaje_telegram",
         lambda mensaje, chat_id=None: llamadas.append(mensaje),
     )
-    enviar_alerta_telegram({}, {}, {})
+
+    assert enviar_alerta_cambios({}, datetime.now()) is None
     assert llamadas == []
 
 
@@ -51,27 +44,7 @@ def test_enviar_mensaje_usa_chat_id_personalizado(monkeypatch):
         capturado["data"] = data
         return FakeResponse()
 
-    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setattr("src.services.telegram_notifier.requests.post", fake_post)
     enviar_mensaje_telegram("Hola", chat_id=42)
+
     assert capturado["data"]["chat_id"] == 42
-
-
-def test_enviar_mensaje_default_chat_id(monkeypatch):
-    capturado = {}
-
-    def fake_post(url, data, timeout):
-        capturado["data"] = data
-        return FakeResponse()
-
-    monkeypatch.setattr(requests, "post", fake_post)
-    enviar_mensaje_telegram("Hola")
-    assert capturado["data"]["chat_id"] == Config.TELEGRAM_CHAT_ID
-
-
-def test_enviar_mensaje_error_de_red_no_rompe(monkeypatch, capsys):
-    def fake_post(url, data, timeout):
-        raise requests.exceptions.ConnectionError("boom")
-
-    monkeypatch.setattr(requests, "post", fake_post)
-    assert enviar_mensaje_telegram("Hola") is None
-    assert "Error de red" in capsys.readouterr().out

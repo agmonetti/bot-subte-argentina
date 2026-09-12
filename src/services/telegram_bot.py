@@ -9,42 +9,43 @@ if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
 from src.config import Config
-from src.services.scrapper import obtener_estado_subte
+from src.services.storage import cargar_snapshot
 from src.services.telegram_notifier import enviar_mensaje_telegram
 
-def _obtener_estado_linea(estados, linea):
-    variantes = (
-        linea,
-        f"Línea {linea}",
-        f"Linea {linea}",
-    )
-    for clave in variantes:
-        estado = estados.get(clave)
-        if estado:
-            return estado
-    return None
 
-def formatear_estado_actual(estados):
-    """Formatea el estado crudo de cada línea sin truncar oraciones."""
+def _estados_originales(snapshot):
+    estados = snapshot.get("estados", {}) if isinstance(snapshot, dict) else {}
+    resultado = {}
+    for linea in Config.LINEAS:
+        datos = estados.get(linea)
+        if isinstance(datos, dict) and datos.get("original"):
+            resultado[linea] = datos["original"]
+        elif isinstance(datos, str) and datos.strip():
+            resultado[linea] = datos.strip()
+    return resultado
+
+
+def formatear_estado_actual(snapshot):
+    """Formatea el último snapshot sin iniciar una consulta externa."""
+    estados = _estados_originales(snapshot)
     mensaje = "Estado del Subte de Buenos Aires\n\n"
-    lineas = ['A', 'B', 'C', 'D', 'E', 'H', 'Premetro']
+    for linea in Config.LINEAS:
+        estado = estados.get(linea, "sin datos disponibles")
+        mensaje += f"<b>{linea}:</b> {estado}\n"
 
-    for linea in lineas:
-        estado = _obtener_estado_linea(estados, linea)
-        if estado:
-            mensaje += f"<b>{linea}:</b> {estado}\n"
-        else:
-            mensaje += f"<b>{linea}:</b> sin datos disponibles\n"
-
+    actualizado = snapshot.get("ultima_actualizacion") if isinstance(snapshot, dict) else None
+    if actualizado:
+        mensaje += f"\nÚltima actualización: {actualizado}"
     return mensaje
 
-def obtener_respuesta_estado():
-    """Devuelve el estado actual obtenido al momento del comando."""
-    estados = obtener_estado_subte()
-    if estados:
-        return formatear_estado_actual(estados)
 
+def obtener_respuesta_estado():
+    """Devuelve exclusivamente el último estado persistido."""
+    snapshot = cargar_snapshot()
+    if snapshot.get("estados"):
+        return formatear_estado_actual(snapshot)
     return "No se pudo obtener el estado del subte en este momento."
+
 
 def obtener_updates(offset):
     """Long-polling de la API de Telegram."""
@@ -54,28 +55,31 @@ def obtener_updates(offset):
     response.raise_for_status()
     return response.json()
 
-def escuchar_comandos():
-    """Escucha comandos del bot sin interrumpir el loop principal."""
-    offset = None
 
+def _chat_autorizado(chat_id):
+    return chat_id is not None and str(chat_id) == str(Config.TELEGRAM_CHAT_ID)
+
+
+def escuchar_comandos():
+    """Escucha comandos sin consultar EMOVA desde el listener de Telegram."""
+    offset = None
     while True:
         try:
             data = obtener_updates(offset)
             for update in data.get("result", []):
                 offset = update["update_id"] + 1
                 mensaje = update.get("message", {})
-                texto = mensaje.get("text", "")
+                texto = mensaje.get("text", "").strip()
                 chat_id = mensaje.get("chat", {}).get("id")
 
-                if not chat_id:
+                if not _chat_autorizado(chat_id):
                     continue
-
-                if texto.strip().startswith(Config.COMANDO_ESTADO):
-                    respuesta = obtener_respuesta_estado()
-                    enviar_mensaje_telegram(respuesta, chat_id=chat_id)
-        except requests.exceptions.RequestException as e:
-            print(f"Error de red al consultar comandos de Telegram: {e}")
-        except Exception as e:
-            print(f"Error inesperado al escuchar comandos: {e}")
+                comando = texto.split(maxsplit=1)[0] if texto else ""
+                if comando == Config.COMANDO_ESTADO:
+                    enviar_mensaje_telegram(obtener_respuesta_estado(), chat_id=chat_id)
+        except requests.exceptions.RequestException as error:
+            print(f"Error de red al consultar comandos de Telegram: {error}")
+        except Exception as error:
+            print(f"Error inesperado al escuchar comandos: {error}")
 
         time.sleep(Config.POLLING_INTERVALO)

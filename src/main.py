@@ -1,89 +1,116 @@
-import time
 import sys
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, time as hora, timedelta
 from pathlib import Path
 
-# Se asegura el path raíz
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
 from src.config import Config
-from src.services import (
-    obtener_estado_subte,
-    cargar_estados_anteriores,
-    guardar_estados,
-    analizar_cambios_con_historial,
-    enviar_alerta_telegram,
-    escuchar_comandos
+from src.services.analyzer import (
+    comparar_snapshots,
+    excluir_estados_finalizados,
+    snapshot_completo,
 )
+from src.services.scrapper import EmovaSignalRSource
+from src.services.storage import cargar_snapshot, guardar_snapshot
+from src.services.telegram_notifier import enviar_alerta_cambios
+from src.services.telegram_bot import escuchar_comandos
 
-def horarios_de_analisis():
-    """Determina si la hora actual está dentro de la ventana de ejecución."""
-    hora_actual = datetime.now(Config.TIMEZONE_LOCAL).hour
-    return Config.HORARIO_ANALISIS_INICIO <= hora_actual <= Config.HORARIO_ANALISIS_FIN
 
-def verificar_estados():
-    """Orquesta el flujo de extracción, análisis y notificación."""
-    try:
-        print(f"\nIniciando verificación - {datetime.now(Config.TIMEZONE_LOCAL).strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        # 1. Extraer datos crudos
-        estados_actuales = obtener_estado_subte()  
-        if not estados_actuales:
-            return
-            
-        # 2. Cargar datos históricos
-        data_anterior = cargar_estados_anteriores()
-        historial_previo = data_anterior.get("historial", {})
-         
-        # 3. Analizar cambios en memoria
-        cambios_nuevos, obras_programadas, obras_renotificar, estados_procesar, historial_actualizado = analizar_cambios_con_historial(estados_actuales, historial_previo)
-        
-        # 4. Notificar si corresponde
-        if cambios_nuevos or obras_programadas or obras_renotificar:
-            enviar_alerta_telegram(cambios_nuevos, obras_programadas, obras_renotificar)
-        else:
-            print("Todo funciona normalmente (sin cambios que notificar).")  
+# Ventana conservadora: cubre los horarios más amplios de la tabla, incluidos
+# feriados, sin necesitar una lista local que pueda quedar desactualizada.
+INICIO_MONITOREO = hora(5, 30)
+FIN_SERVICIO_MAS_TARDE = 90  # 01:30 del día siguiente, sábado.
 
-        # 5. Persistir el nuevo estado en disco
-        fecha_actualizacion = datetime.now(Config.TIMEZONE_LOCAL).isoformat()
-        guardar_estados(estados_procesar, historial_actualizado, fecha_actualizacion)
 
-    except Exception as e:
-        print(f"Error general en el ciclo de verificación: {e}")
+def fin_monitoreo_minutos():
+    return FIN_SERVICIO_MAS_TARDE + Config.MARGEN_FIN_SERVICIO_MINUTOS
+
+
+def ventana_operativa(ahora=None):
+    """Indica si la hora pertenece a la ventana diaria de servicio."""
+    ahora = ahora or datetime.now(Config.TIMEZONE_LOCAL)
+    minutos = ahora.hour * 60 + ahora.minute
+    inicio = INICIO_MONITOREO.hour * 60 + INICIO_MONITOREO.minute
+    fin = fin_monitoreo_minutos()
+    return minutos >= inicio or minutos < fin
+
+
+def segundos_hasta_apertura(ahora=None):
+    """Calcula el sueño hasta las 05:30 locales siguientes."""
+    ahora = ahora or datetime.now(Config.TIMEZONE_LOCAL)
+    apertura = ahora.replace(
+        hour=INICIO_MONITOREO.hour,
+        minute=INICIO_MONITOREO.minute,
+        second=0,
+        microsecond=0,
+    )
+    if ahora >= apertura:
+        apertura += timedelta(days=1)
+    return max(1, (apertura - ahora).total_seconds())
+
+
+def procesar_estado(estados_actuales, fecha_actualizacion):
+    """Compara, persiste y notifica un snapshot válido de EMOVA."""
+    if not snapshot_completo(estados_actuales):
+        print("Payload incompleto de EMOVA; se descarta sin notificar.")
+        return
+
+    data_anterior = cargar_snapshot()
+    anterior = data_anterior.get("estados", {})
+    estados_operativos = excluir_estados_finalizados(estados_actuales, anterior)
+    if not snapshot_completo(estados_operativos):
+        print("Snapshot operativo incompleto de EMOVA; se descarta sin notificar.")
+        return
+
+    guardar_snapshot(estados_operativos, fecha_actualizacion.isoformat())
+    if not anterior:
+        print("Snapshot inicial guardado; no se envían alertas.")
+        return
+
+    cambios = comparar_snapshots(estados_operativos, anterior)
+    if cambios:
+        enviar_alerta_cambios(cambios, fecha_actualizacion)
+        print(f"Actualización enviada para: {', '.join(cambios)}")
+    else:
+        print("Estado sin cambios; no se envía alerta.")
+
 
 def main():
-    """Bucle principal de ejecución y control de tiempos."""
+    """Ejecuta Telegram y el listener persistente de EMOVA."""
     print("Iniciando servicio Bot-Subte...")
-
+    stop_event = threading.Event()
     hilo_bot = threading.Thread(target=escuchar_comandos, daemon=True)
     hilo_bot.start()
-    
-    while True:
-        ahora = datetime.now(Config.TIMEZONE_LOCAL)
-        
-        if horarios_de_analisis():
-            verificar_estados()
-            proxima_ejecucion = ahora + timedelta(seconds=Config.INTERVALO_EJECUCION)
-            print(f"Esperando hasta la próxima ejecución ({proxima_ejecucion.strftime('%Y-%m-%d %H:%M:%S')})...")
-            time.sleep(Config.INTERVALO_EJECUCION)
 
-        else:
-            # Calcular tiempo de sueño hasta la apertura del servicio
-            if ahora.hour < Config.HORARIO_ANALISIS_INICIO:
-                proxima_ejecucion = ahora.replace(hour=Config.HORARIO_ANALISIS_INICIO, minute=0, second=0, microsecond=0)
-            else: 
-                proxima_ejecucion = (ahora + timedelta(days=1)).replace(hour=Config.HORARIO_ANALISIS_INICIO, minute=0, second=0, microsecond=0)
-            
-            segundos_hasta_inicio = (proxima_ejecucion - ahora).total_seconds()
-            print(f"Fuera del horario de análisis. Durmiendo hasta {proxima_ejecucion.strftime('%Y-%m-%d %H:%M:%S')} ({segundos_hasta_inicio/3600:.2f} horas)")
-            
-            if segundos_hasta_inicio > 0:
-                time.sleep(segundos_hasta_inicio)
-            else:
-                time.sleep(60)
+    fuente = EmovaSignalRSource()
+    espera_reconexion = 5
+    while not stop_event.is_set():
+        if not ventana_operativa():
+            espera = segundos_hasta_apertura()
+            print(f"Fuera de la ventana operativa. Durmiendo {espera / 3600:.2f} horas.")
+            stop_event.wait(espera)
+            espera_reconexion = 5
+            continue
+
+        try:
+            fuente.escuchar(
+                procesar_estado,
+                duracion=Config.RECONCILIATION_INTERVAL_SECONDS,
+                stop_event=stop_event,
+            )
+            espera_reconexion = 5
+        except Exception as error:
+            print(f"Error en el ciclo SignalR: {error}")
+            if stop_event.wait(espera_reconexion):
+                break
+            espera_reconexion = min(
+                espera_reconexion * 2, Config.RECONNECT_MAX_SECONDS
+            )
+
 
 if __name__ == "__main__":
     main()
