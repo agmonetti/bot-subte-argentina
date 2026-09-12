@@ -61,3 +61,25 @@ def test_sse_parser_reconstruye_data_multilinea():
 
     assert contenidos == ["initialized", '{"C":"1",\n"M":[]}' ]
     assert json.loads(contenidos[1])["C"] == "1"
+
+def test_obtener_estado_consulta_un_snapshot_completo(monkeypatch):
+    class Response:
+        def __init__(self):
+            self.closed = False
+
+        def iter_lines(self, decode_unicode):
+            yield 'data: {"M":[{"H":"SignalREmova","M":"estadoLineas","A":["' + _html_estados().replace('"', '\\"') + '"]}]}'
+            yield ""
+
+        def close(self):
+            self.closed = True
+
+    response = Response()
+    fuente = EmovaSignalRSource()
+    monkeypatch.setattr(fuente, "_conectar", lambda read_timeout: response)
+
+    estados = fuente.obtener_estado()
+
+    assert estados["A"] == {"original": "Normal", "canonico": "normal"}
+    assert set(estados) == {"A", "B", "C", "D", "E", "H", "Premetro"}
+    assert response.closed

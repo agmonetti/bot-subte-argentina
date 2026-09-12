@@ -7,7 +7,7 @@ from src.services.storage import guardar_snapshot
 from src.services.telegram_bot import escuchar_comandos, obtener_respuesta_estado
 
 
-def test_estado_usa_snapshot_persistido(tmp_config):
+def test_estado_consulta_emova_en_el_momento(tmp_config, monkeypatch):
     guardar_snapshot(
         {
             "A": {"original": "Normal", "canonico": "normal"},
@@ -16,11 +16,21 @@ def test_estado_usa_snapshot_persistido(tmp_config):
         "2026-08-13T13:00:00+00:00",
     )
 
+    class FakeSource:
+        def obtener_estado(self):
+            return {
+                "A": {"original": "Demora", "canonico": "demora"},
+                "B": {"original": "Normal", "canonico": "normal"},
+            }
+
+    monkeypatch.setattr("src.services.telegram_bot.EmovaSignalRSource", FakeSource)
+
     texto = obtener_respuesta_estado()
 
-    assert "<b>A:</b> Normal" in texto
-    assert "<b>B:</b> Cerrada por obras" in texto
-    assert "Última actualización: 13/08/2026 10:00" in texto
+    assert "<b>A:</b> Demora" in texto
+    assert "<b>B:</b> Normal" in texto
+    assert "<b>A:</b> Normal" not in texto
+    assert "Última actualización:" in texto
 
 
 def test_listener_ignora_chat_no_autorizado(monkeypatch):

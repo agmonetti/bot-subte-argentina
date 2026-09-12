@@ -10,12 +10,13 @@ Bot automatizado que monitorea el estado de las líneas del subte de Buenos Aire
 - Reintenta conexiones con backoff de hasta 60 segundos.
 - Resincroniza cada 10 minutos (`600` segundos).
 - Telegram es únicamente el canal de salida y de comandos (`/estado`, `/horarios`); el bot no lee mensajes de Telegram como fuente de estados.
+  - `/estado` consulta EMOVA en ese momento y responde sólo al chat autorizado; no usa el snapshot persistido.
 - La página pública de EMOVA no muestra las alertas ni los mensajes enviados por el bot: son dos superficies independientes.
 - Envía alertas sólo cuando cambia el estado canónico de una línea; un snapshot idéntico recibido diez minutos después no genera otra publicación.
 - El primer snapshot después de una instalación limpia se persiste sin notificar.
 - El regreso de una línea a `Normal` sí genera una actualización.
 - Un payload incompleto o inválido se descarta para evitar falsas alertas.
-- `/estado` responde desde el snapshot persistido y sólo al chat autorizado.
+- La consulta puntual de `/estado` no modifica el snapshot persistido ni el ciclo de alertas.
 
 La fuente de EMOVA no es una API pública documentada. El adaptador SignalR está aislado para que un cambio del sitio no afecte la lógica de negocio.
 
@@ -37,7 +38,7 @@ Fuera de esa ventana se cierra la conexión con EMOVA. El listener de Telegram p
 │       ├── analyzer.py         # Normalización y comparación de snapshots
 │       ├── scrapper.py         # Cliente SignalR/SSE y parser HTML
 │       ├── storage.py          # Persistencia atómica y migración
-│       ├── telegram_bot.py     # Long-polling y /estado cacheado
+│       ├── telegram_bot.py     # Long-polling y /estado en tiempo real
 │       └── telegram_notifier.py
 ├── Dockerfile
 └── requirements.txt

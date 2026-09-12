@@ -15,7 +15,8 @@ Automated Telegram bot that monitors Buenos Aires subway line status and sends a
 - Stores the first clean-install snapshot without sending alerts.
 - Reports a return to `Normal` as a change.
 - Discards incomplete or invalid payloads.
-- `/estado` reads the persisted snapshot and answers only the authorized chat.
+- `/estado` queries EMOVA at that moment and answers only the authorized chat; it does not use the persisted snapshot.
+  - The one-shot `/estado` query does not modify the persisted snapshot or the alert cycle.
 
 The EMOVA source is not a documented public API. The SignalR adapter is isolated so site changes do not leak into business logic.
 

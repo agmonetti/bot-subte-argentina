@@ -84,20 +84,16 @@ class EmovaSignalRSource:
                 estados = _parsear_html_estados(argumentos[0])
         return estados
 
-    def escuchar(self, procesar_estado, duracion=None, stop_event=None):
-        """Escucha una conexión durante la reconciliación configurada."""
+    def _conectar(self, read_timeout=75):
         parametros, token = self._negociar()
         transporte = self._parametros_transporte(parametros, token)
         response = None
-        deadline = time.monotonic() + duracion if duracion else None
         try:
-            # El stream debe abrirse antes de /start: SignalR usa el stream para
-            # entregar el handshake y el estado inicial del hub.
             response = self.session.get(
                 f"{Config.URL_SIGNALR}/connect",
                 params=transporte,
                 stream=True,
-                timeout=(10, 75),
+                timeout=(10, read_timeout),
             )
             response.raise_for_status()
             response.encoding = "utf-8"
@@ -105,6 +101,40 @@ class EmovaSignalRSource:
                 f"{Config.URL_SIGNALR}/start", params=transporte, timeout=10
             )
             start.raise_for_status()
+            return response
+        except Exception:
+            if response is not None:
+                response.close()
+            raise
+
+    def obtener_estado(self):
+        """Obtiene un snapshot completo directamente desde EMOVA."""
+        response = None
+        try:
+            response = self._conectar(read_timeout=15)
+            for contenido in self._mensajes_sse(response):
+                if contenido in ("initialized", "{}"):
+                    continue
+                try:
+                    payload = json.loads(contenido)
+                except json.JSONDecodeError:
+                    continue
+                estados = normalizar_estados(self._extraer_estados(payload))
+                if snapshot_completo(estados):
+                    return estados
+            raise EmovaSourceError("EMOVA no entregó un estado completo")
+        except (requests.RequestException, ValueError, EmovaSourceError) as error:
+            raise EmovaSourceError(str(error)) from error
+        finally:
+            if response is not None:
+                response.close()
+
+    def escuchar(self, procesar_estado, duracion=None, stop_event=None):
+        """Escucha una conexión durante la reconciliación configurada."""
+        response = None
+        deadline = time.monotonic() + duracion if duracion else None
+        try:
+            response = self._conectar()
 
             for contenido in self._mensajes_sse(response):
                 if stop_event and stop_event.is_set():

@@ -11,8 +11,8 @@ if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
 from src.config import Config
-from src.services.storage import cargar_snapshot
 from src.services.telegram_notifier import enviar_mensaje_telegram
+from src.services.scrapper import EmovaSignalRSource, EmovaSourceError
 from src.services.horarios import obtener_respuesta_horarios
 
 
@@ -40,7 +40,7 @@ def _formatear_ultima_actualizacion(valor):
         return str(valor)
 
 def formatear_estado_actual(snapshot):
-    """Formatea el último snapshot sin iniciar una consulta externa."""
+    """Formatea un snapshot de estado."""
     estados = _estados_originales(snapshot)
     mensaje = "Estado del Subte de Buenos Aires\n\n"
     for linea in Config.LINEAS:
@@ -54,11 +54,18 @@ def formatear_estado_actual(snapshot):
 
 
 def obtener_respuesta_estado():
-    """Devuelve exclusivamente el último estado persistido."""
-    snapshot = cargar_snapshot()
-    if snapshot.get("estados"):
-        return formatear_estado_actual(snapshot)
-    return "No se pudo obtener el estado del subte en este momento."
+    """Consulta EMOVA y devuelve el estado observado en ese momento."""
+    try:
+        estados = EmovaSignalRSource().obtener_estado()
+    except EmovaSourceError as error:
+        print(f"Error al consultar el estado actual de EMOVA: {error}")
+        return "No se pudo obtener el estado del subte en este momento."
+
+    snapshot = {
+        "ultima_actualizacion": datetime.now(Config.TIMEZONE_LOCAL).isoformat(),
+        "estados": estados,
+    }
+    return formatear_estado_actual(snapshot)
 
 
 def obtener_updates(offset):
