@@ -63,6 +63,59 @@ def test_mismo_snapshot_no_repite_alerta_ni_fecha(tmp_config, monkeypatch):
     assert cargar_snapshot()["ultima_actualizacion"] == primera_fecha
 
 
+def test_fallo_de_persistencia_no_repite_alertas(tmp_config, monkeypatch):
+    notificaciones = []
+    monkeypatch.setattr(
+        "src.main.enviar_alerta_cambios",
+        lambda cambios, fecha: notificaciones.append(cambios),
+    )
+
+    procesar_estado(estados(), datetime(2026, 9, 13, 8, 0, 0))
+    monkeypatch.setattr("src.main.guardar_snapshot", lambda estados, fecha: False)
+
+    actual = estados()
+    actual["B"] = normalizar_estados(
+        {"B": "Estación Medrano cerrada por obras de renovación integral."}
+    )["B"]
+    procesar_estado(actual, datetime(2026, 9, 13, 8, 10, 0))
+    procesar_estado(actual, datetime(2026, 9, 13, 8, 20, 0))
+
+    assert notificaciones == []
+
+
+def test_obras_existentes_y_nueva_obra_solo_notifican_la_nueva(
+    tmp_config, monkeypatch
+):
+    notificaciones = []
+    monkeypatch.setattr(
+        "src.main.enviar_alerta_cambios",
+        lambda cambios, fecha: notificaciones.append(cambios),
+    )
+
+    estados_previos = estados()
+    estados_previos.update(
+        normalizar_estados(
+            {
+                "C": "El 14-09 cierra la estación Lavalle por obras de renovación integral.",
+                "D": "Estación Tribunales cerrada por obras de renovación integral.",
+                "E": "Entre Ríos y Urquiza cerradas por obras de renovación integral.",
+            }
+        )
+    )
+    estados_actuales = dict(estados_previos)
+    estados_actuales["B"] = normalizar_estados(
+        {"B": "Estación Medrano cerrada por obras de renovación integral."}
+    )["B"]
+
+    procesar_estado(estados_previos, datetime(2026, 9, 13, 8, 0, 0))
+    procesar_estado(estados_actuales, datetime(2026, 9, 13, 8, 10, 0))
+    procesar_estado(estados_actuales, datetime(2026, 9, 13, 8, 20, 0))
+
+    assert notificaciones == [
+        {"B": {"anterior": "Normal", "actual": "Estación Medrano cerrada por obras de renovación integral."}}
+    ]
+
+
 def test_payload_incompleto_no_reemplaza_snapshot(tmp_config, monkeypatch):
     notificaciones = []
     monkeypatch.setattr(

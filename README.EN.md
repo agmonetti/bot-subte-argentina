@@ -14,7 +14,7 @@ Automated Telegram bot that monitors Buenos Aires subway line status and sends a
 - Sends an alert only when a line's canonical status changes; an identical snapshot received ten minutes later does not produce another post.
 - Stores the first clean-install snapshot without sending alerts.
 - Reports a return to `Normal` as a change.
-- Discards incomplete or invalid payloads.
+- If the snapshot cannot be persisted, no alert is sent and the error is logged to prevent duplicates.
 - `/estado` queries EMOVA at that moment and answers only the authorized chat; it does not use the persisted snapshot.
   - The one-shot `/estado` query does not modify the persisted snapshot or the alert cycle.
 

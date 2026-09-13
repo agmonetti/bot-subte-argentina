@@ -15,7 +15,7 @@ Bot automatizado que monitorea el estado de las líneas del subte de Buenos Aire
 - Envía alertas sólo cuando cambia el estado canónico de una línea; un snapshot idéntico recibido diez minutos después no genera otra publicación.
 - El primer snapshot después de una instalación limpia se persiste sin notificar.
 - El regreso de una línea a `Normal` sí genera una actualización.
-- Un payload incompleto o inválido se descarta para evitar falsas alertas.
+- Si no puede persistir el snapshot, no envía la alerta y deja el error registrado para evitar duplicados.
 - La consulta puntual de `/estado` no modifica el snapshot persistido ni el ciclo de alertas.
 
 La fuente de EMOVA no es una API pública documentada. El adaptador SignalR está aislado para que un cambio del sitio no afecte la lógica de negocio.

@@ -71,7 +71,10 @@ def procesar_estado(estados_actuales, fecha_actualizacion):
         print("Estado sin cambios; no se persiste ni se envía alerta.")
         return
 
-    guardar_snapshot(estados_operativos, fecha_actualizacion.isoformat())
+    if not guardar_snapshot(estados_operativos, fecha_actualizacion.isoformat()):
+        print("Snapshot no persistido; no se envía alerta.")
+        return
+
     if not anterior:
         print("Snapshot inicial guardado; no se envían alertas.")
         return

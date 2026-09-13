@@ -74,9 +74,9 @@ def guardar_snapshot(estados, fecha_actualizacion):
         "ultima_actualizacion": fecha_actualizacion,
         "estados": estados,
     }
-    Config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     temporal = None
     try:
+        Config.DATA_DIR.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
             mode="w",
             encoding="utf-8",
@@ -90,7 +90,9 @@ def guardar_snapshot(estados, fecha_actualizacion):
             archivo.flush()
             os.fsync(archivo.fileno())
         os.replace(temporal, Config.ARCHIVO_ESTADO)
+        return True
     except (OSError, TypeError, ValueError) as error:
         if temporal:
             temporal.unlink(missing_ok=True)
         print(f"Error de I/O al guardar estados: {error}")
+        return False
